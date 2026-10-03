@@ -1,0 +1,761 @@
+install numpy scipy matplotlib
+
+# ============================================================
+# ACTIVIDAD 1 - IDENTIFICACIÓN DE UN SISTEMA DE PRIMER ORDEN
+# Python + Tkinter + Matplotlib
+# ============================================================
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+
+# ============================================================
+# CONFIGURACIÓN INICIAL
+# ============================================================
+
+K_INICIAL = 3.0
+T63_INICIAL = 4.7
+
+
+# ============================================================
+# FUNCIÓN PRINCIPAL DE CÁLCULO
+# ============================================================
+
+def calcular():
+
+    try:
+        # ----------------------------------------------------
+        # Obtener datos introducidos por el usuario
+        # ----------------------------------------------------
+
+        K = float(entry_K.get())
+        t63 = float(entry_t63.get())
+
+        if K <= 0 or t63 <= 0:
+            raise ValueError
+
+        # ----------------------------------------------------
+        # Cálculo del 63.2 %
+        # ----------------------------------------------------
+
+        porcentaje_632 = 0.632 * K
+
+        # Para un sistema de primer orden:
+        #
+        # y(tau) = 0.632 K
+        #
+        # Por lo tanto:
+        #
+        # tau = t63
+
+        tau = t63
+
+        # ----------------------------------------------------
+        # Función de transferencia
+        #
+        # G(s) = K / (tau*s + 1)
+        # ----------------------------------------------------
+
+        numerador = K
+        denominador_s = tau
+        denominador_constante = 1
+
+        # ----------------------------------------------------
+        # Forma normalizada:
+        #
+        # G(s) = (K/tau)/(s + 1/tau)
+        # ----------------------------------------------------
+
+        ganancia_normalizada = K / tau
+        polo = -1 / tau
+
+        # ----------------------------------------------------
+        # Mostrar resultados
+        # ----------------------------------------------------
+
+        resultado = f"""
+══════════════════════════════════════════════════════════════
+                 RESULTADOS DE IDENTIFICACIÓN
+══════════════════════════════════════════════════════════════
+
+1. VALOR FINAL
+
+K = {K:.4f}
+
+
+2. VALOR DEL 63.2 %
+
+y(τ) = 0.632 K
+
+y(τ) = 0.632({K:.4f})
+
+y(τ) = {porcentaje_632:.4f}
+
+
+3. CONSTANTE DE TIEMPO
+
+De la gráfica:
+
+t₆₃.₂% = {t63:.4f} s
+
+Por definición:
+
+τ = t₆₃.₂%
+
+Por lo tanto:
+
+τ = {tau:.4f} s
+
+
+4. MODELO GENERAL DE PRIMER ORDEN
+
+              K
+G(s) = ─────────────
+            τs + 1
+
+
+5. FUNCIÓN DE TRANSFERENCIA OBTENIDA
+
+              {K:.4f}
+G(s) = ─────────────────
+             {tau:.4f}s + 1
+
+
+6. FORMA NORMALIZADA
+
+G(s) = {ganancia_normalizada:.4f}
+       ─────────────────────
+        s + {1/tau:.4f}
+
+
+7. POLO DEL SISTEMA
+
+p = -1/τ
+
+p = {polo:.4f}
+
+
+══════════════════════════════════════════════════════════════
+"""
+
+        text_resultado.delete("1.0", tk.END)
+        text_resultado.insert(tk.END, resultado)
+
+        # ----------------------------------------------------
+        # CREAR RESPUESTA DEL SISTEMA
+        # ----------------------------------------------------
+
+        t = np.linspace(0, 50, 1500)
+
+        # Respuesta al escalón:
+        #
+        # y(t) = K(1-e^(-t/tau))
+
+        y_modelo = K * (1 - np.exp(-t / tau))
+
+        # ----------------------------------------------------
+        # Curva de referencia aproximada de la imagen
+        #
+        # Estos puntos representan la lectura aproximada
+        # de la gráfica proporcionada en el problema.
+        # ----------------------------------------------------
+
+        t_ref = np.array([
+            0, 1, 2, 2.5, 3, 3.5, 4,
+            4.5, 5, 6, 7, 8, 10, 12,
+            15, 20, 25, 30, 35, 40, 45, 50
+        ])
+
+        y_ref = np.array([
+            0,
+            0,
+            0.05,
+            0.35,
+            0.95,
+            1.30,
+            1.65,
+            1.90,
+            2.10,
+            2.42,
+            2.63,
+            2.75,
+            2.90,
+            2.96,
+            2.99,
+            3.00,
+            3.00,
+            3.00,
+            3.00,
+            3.00,
+            3.00,
+            3.00
+        ])
+
+        # ----------------------------------------------------
+        # Interpolar el modelo en los puntos de referencia
+        # para calcular error
+        # ----------------------------------------------------
+
+        y_modelo_ref = K * (
+            1 - np.exp(-t_ref / tau)
+        )
+
+        error_abs = np.mean(
+            np.abs(y_ref - y_modelo_ref)
+        )
+
+        error_porcentaje = (
+            error_abs / K
+        ) * 100
+
+        similitud = 100 - error_porcentaje
+
+        # ----------------------------------------------------
+        # Mostrar análisis de similitud
+        # ----------------------------------------------------
+
+        text_similitud.delete("1.0", tk.END)
+
+        texto_similitud = f"""
+══════════════════════════════════════════════════════════════
+                  COMPROBACIÓN DEL MODELO
+══════════════════════════════════════════════════════════════
+
+Valor final de referencia:
+
+K = {K:.4f}
+
+
+Valor final del modelo:
+
+K = {y_modelo[-1]:.4f}
+
+
+Error absoluto promedio:
+
+{error_abs:.4f}
+
+
+Error porcentual aproximado:
+
+{error_porcentaje:.2f}%
+
+
+Similitud aproximada:
+
+{similitud:.2f}%
+
+
+INTERPRETACIÓN:
+
+La función de transferencia obtenida genera una respuesta
+de primer orden que presenta una forma similar a la curva
+proporcionada en el problema.
+
+El punto del 63.2 % se utiliza para determinar la constante
+de tiempo τ.
+
+
+══════════════════════════════════════════════════════════════
+"""
+
+        text_similitud.insert(
+            tk.END,
+            texto_similitud
+        )
+
+        # ----------------------------------------------------
+        # GRAFICAR
+        # ----------------------------------------------------
+
+        ax.clear()
+
+        # Curva de referencia
+        ax.plot(
+            t_ref,
+            y_ref,
+            linestyle="--",
+            linewidth=2,
+            label="Curva proporcionada"
+        )
+
+        # Modelo obtenido
+        ax.plot(
+            t,
+            y_modelo,
+            linewidth=2.5,
+            label="Modelo identificado"
+        )
+
+        # Línea del 63.2 %
+        ax.axhline(
+            porcentaje_632,
+            linestyle=":",
+            linewidth=2,
+            label=f"63.2 % = {porcentaje_632:.3f}"
+        )
+
+        # Línea de tau
+        ax.axvline(
+            tau,
+            linestyle=":",
+            linewidth=2,
+            label=f"τ = {tau:.2f} s"
+        )
+
+        # Punto 63.2 %
+        ax.scatter(
+            [tau],
+            [porcentaje_632],
+            s=80,
+            zorder=5,
+            label=f"(τ, 63.2 %) = ({tau:.2f}, {porcentaje_632:.3f})"
+        )
+
+        ax.set_title(
+            "Identificación de un Sistema de Primer Orden",
+            fontsize=14,
+            fontweight="bold"
+        )
+
+        ax.set_xlabel("Tiempo (s)")
+        ax.set_ylabel("Amplitud")
+
+        ax.set_xlim(0, 50)
+        ax.set_ylim(0, 3.3)
+
+        ax.grid(
+            True,
+            alpha=0.3
+        )
+
+        ax.legend(
+            fontsize=8,
+            loc="lower right"
+        )
+
+        canvas.draw()
+
+    except ValueError:
+        messagebox.showerror(
+            "Error",
+            "Introduce valores numéricos positivos."
+        )
+
+
+# ============================================================
+# GUARDAR GRÁFICA
+# ============================================================
+
+def guardar_grafica():
+
+    try:
+
+        archivo = "grafica_actividad_1_primer_orden.png"
+
+        fig.savefig(
+            archivo,
+            dpi=300,
+            bbox_inches="tight"
+        )
+
+        messagebox.showinfo(
+            "Gráfica guardada",
+            f"La gráfica fue guardada como:\n\n{archivo}"
+        )
+
+    except Exception as error:
+
+        messagebox.showerror(
+            "Error",
+            str(error)
+        )
+
+
+# ============================================================
+# VENTANA PRINCIPAL
+# ============================================================
+
+root = tk.Tk()
+
+root.title(
+    "Actividad 1 - Identificación de Sistema de Primer Orden"
+)
+
+root.geometry("1250x850")
+
+root.minsize(1100, 750)
+
+
+# ============================================================
+# ESTILO
+# ============================================================
+
+style = ttk.Style()
+
+try:
+    style.theme_use("clam")
+except:
+    pass
+
+
+# ============================================================
+# TÍTULO
+# ============================================================
+
+titulo = ttk.Label(
+    root,
+    text="ACTIVIDAD 1 — IDENTIFICACIÓN DE UN SISTEMA DE PRIMER ORDEN",
+    font=("Arial", 18, "bold")
+)
+
+titulo.pack(
+    pady=(15, 5)
+)
+
+
+subtitulo = ttk.Label(
+    root,
+    text="Análisis gráfico y obtención de la función de transferencia",
+    font=("Arial", 11)
+)
+
+subtitulo.pack(
+    pady=(0, 10)
+)
+
+
+# ============================================================
+# ENUNCIADO
+# ============================================================
+
+frame_enunciado = ttk.LabelFrame(
+    root,
+    text="Enunciado de la actividad",
+    padding=10
+)
+
+frame_enunciado.pack(
+    fill="x",
+    padx=15,
+    pady=5
+)
+
+enunciado = (
+    "A un sistema de primer orden se le aplicó un escalón unitario "
+    "sin retraso y dicho sistema reaccionó así:\n\n"
+    
+    "Encuentra los parámetros característicos del sistema en cuestión "
+    "para obtener la función de transferencia. Utiliza Python con "
+    "matplotlib para comprobar que tu función de transferencia obtenida "
+    "fue correcta y se asemeja mucho con la otorgada en el problema."
+)
+
+label_enunciado = ttk.Label(
+    frame_enunciado,
+    text=enunciado,
+    wraplength=1150,
+    justify="left",
+    font=("Arial", 10)
+)
+
+label_enunciado.pack(
+    anchor="w"
+)
+
+
+# ============================================================
+# CONTENEDOR PRINCIPAL
+# ============================================================
+
+frame_principal = ttk.Frame(root)
+
+frame_principal.pack(
+    fill="both",
+    expand=True,
+    padx=15,
+    pady=10
+)
+
+
+# ============================================================
+# PANEL IZQUIERDO
+# ============================================================
+
+frame_izquierdo = ttk.Frame(
+    frame_principal
+)
+
+frame_izquierdo.pack(
+    side="left",
+    fill="both",
+    expand=True,
+    padx=(0, 10)
+)
+
+
+# ============================================================
+# DATOS
+# ============================================================
+
+frame_datos = ttk.LabelFrame(
+    frame_izquierdo,
+    text="1. Datos obtenidos de la gráfica",
+    padding=10
+)
+
+frame_datos.pack(
+    fill="x",
+    pady=5
+)
+
+
+label_K = ttk.Label(
+    frame_datos,
+    text="Valor final K:"
+)
+
+label_K.grid(
+    row=0,
+    column=0,
+    sticky="w",
+    padx=5,
+    pady=5
+)
+
+
+entry_K = ttk.Entry(
+    frame_datos,
+    width=15
+)
+
+entry_K.insert(
+    0,
+    str(K_INICIAL)
+)
+
+entry_K.grid(
+    row=0,
+    column=1,
+    padx=5,
+    pady=5
+)
+
+
+label_t63 = ttk.Label(
+    frame_datos,
+    text="Tiempo al 63.2 % (s):"
+)
+
+label_t63.grid(
+    row=1,
+    column=0,
+    sticky="w",
+    padx=5,
+    pady=5
+)
+
+
+entry_t63 = ttk.Entry(
+    frame_datos,
+    width=15
+)
+
+entry_t63.insert(
+    0,
+    str(T63_INICIAL)
+)
+
+entry_t63.grid(
+    row=1,
+    column=1,
+    padx=5,
+    pady=5
+)
+
+
+# ============================================================
+# BOTONES
+# ============================================================
+
+frame_botones = ttk.Frame(
+    frame_izquierdo
+)
+
+frame_botones.pack(
+    fill="x",
+    pady=10
+)
+
+
+boton_calcular = ttk.Button(
+    frame_botones,
+    text="CALCULAR Y GRAFICAR",
+    command=calcular
+)
+
+boton_calcular.pack(
+    side="left",
+    padx=5
+)
+
+
+boton_guardar = ttk.Button(
+    frame_botones,
+    text="GUARDAR GRÁFICA",
+    command=guardar_grafica
+)
+
+boton_guardar.pack(
+    side="left",
+    padx=5
+)
+
+
+# ============================================================
+# PROCEDIMIENTO
+# ============================================================
+
+frame_procedimiento = ttk.LabelFrame(
+    frame_izquierdo,
+    text="2. Procedimiento",
+    padding=5
+)
+
+frame_procedimiento.pack(
+    fill="both",
+    expand=True,
+    pady=5
+)
+
+
+text_resultado = tk.Text(
+    frame_procedimiento,
+    wrap="word",
+    font=("Consolas", 9)
+)
+
+text_resultado.pack(
+    fill="both",
+    expand=True
+)
+
+
+# ============================================================
+# SIMILITUD
+# ============================================================
+
+frame_similitud = ttk.LabelFrame(
+    frame_izquierdo,
+    text="3. Comprobación y análisis",
+    padding=5
+)
+
+frame_similitud.pack(
+    fill="both",
+    expand=True,
+    pady=5
+)
+
+
+text_similitud = tk.Text(
+    frame_similitud,
+    wrap="word",
+    font=("Consolas", 9)
+)
+
+text_similitud.pack(
+    fill="both",
+    expand=True
+)
+
+
+# ============================================================
+# PANEL DERECHO - GRÁFICA
+# ============================================================
+
+frame_grafica = ttk.LabelFrame(
+    frame_principal,
+    text="4. Comprobación mediante Matplotlib",
+    padding=5
+)
+
+frame_grafica.pack(
+    side="right",
+    fill="both",
+    expand=True
+)
+
+
+# ============================================================
+# CREACIÓN DE FIGURA
+# ============================================================
+
+fig, ax = plt.subplots(
+    figsize=(7, 5)
+)
+
+ax.set_title(
+    "Respuesta del sistema"
+)
+
+ax.set_xlabel(
+    "Tiempo (s)"
+)
+
+ax.set_ylabel(
+    "Amplitud"
+)
+
+ax.grid(
+    True,
+    alpha=0.3
+)
+
+
+canvas = FigureCanvasTkAgg(
+    fig,
+    master=frame_grafica
+)
+
+canvas.draw()
+
+canvas.get_tk_widget().pack(
+    fill="both",
+    expand=True
+)
+
+
+# ============================================================
+# INFORMACIÓN INFERIOR
+# ============================================================
+
+footer = ttk.Label(
+    root,
+    text="Python • NumPy • Matplotlib • Tkinter",
+    font=("Arial", 9)
+)
+
+footer.pack(
+    pady=5
+)
+
+
+# ============================================================
+# EJECUTAR CÁLCULO AUTOMÁTICAMENTE AL ABRIR
+# ============================================================
+
+root.after(
+    300,
+    calcular
+)
+
+
+# ============================================================
+# EJECUTAR APLICACIÓN
+# ============================================================
+
+root.mainloop()
